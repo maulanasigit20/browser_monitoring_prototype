@@ -1,6 +1,11 @@
 import { getSupabaseServerClient } from "@/lib/supabase";
 
-export const dynamic = "force-dynamic"; // selalu data terbaru, bukan cached
+// Tiga baris ini sengaja tiga-tiganya dipasang (bukan cuma dynamic) sebagai
+// pengaman berlapis supaya Vercel/Next.js beneran gak nge-cache halaman ini
+// sama sekali -- data harus selalu fresh dari Supabase tiap kali dibuka.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 async function getData() {
   const supabase = getSupabaseServerClient();
@@ -43,78 +48,66 @@ export default async function DashboardPage() {
   const { stats, recentActivity } = await getData();
 
   return (
-    <div className="shell">
-      <nav className="nav">
-        <div className="nav-brand">
-          <strong>Monitoring</strong>
-          demo dashboard
+    <>
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat-value">{stats.employees}</div>
+          <div className="stat-label">Karyawan terdaftar</div>
         </div>
-        <a href="/dashboard" className="active">Aktivitas browser</a>
-        <a href="/dashboard/location">Lokasi</a>
-        <a href="/dashboard/attendance">Absensi</a>
-      </nav>
-
-      <main className="main">
-        <div className="stat-row">
-          <div className="stat">
-            <div className="stat-value">{stats.employees}</div>
-            <div className="stat-label">Karyawan terdaftar</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{stats.browser}</div>
-            <div className="stat-label">Event browser</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{stats.location}</div>
-            <div className="stat-label">Titik lokasi</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{stats.attendance}</div>
-            <div className="stat-label">Record absensi</div>
-          </div>
+        <div className="stat">
+          <div className="stat-value">{stats.browser}</div>
+          <div className="stat-label">Event browser</div>
         </div>
+        <div className="stat">
+          <div className="stat-value">{stats.location}</div>
+          <div className="stat-label">Titik lokasi</div>
+        </div>
+        <div className="stat">
+          <div className="stat-value">{stats.attendance}</div>
+          <div className="stat-label">Record absensi</div>
+        </div>
+      </div>
 
-        <h2 className="section-title">Aktivitas browser terbaru</h2>
+      <h2 className="section-title">Aktivitas browser terbaru</h2>
 
-        {recentActivity.length === 0 ? (
-          <div className="empty-state">
-            Belum ada data. Sync dari Android app dulu, atau insert manual di Supabase table editor untuk testing.
-          </div>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Waktu</th>
-                <th>Karyawan</th>
-                <th>Browser</th>
-                <th>URL / pencarian</th>
-                <th>Tipe</th>
+      {recentActivity.length === 0 ? (
+        <div className="empty-state">
+          Belum ada data. Sync dari Android app dulu, atau insert manual di Supabase table editor untuk testing.
+        </div>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Waktu</th>
+              <th>Karyawan</th>
+              <th>Browser</th>
+              <th>URL / pencarian</th>
+              <th>Tipe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentActivity.map((row: any) => (
+              <tr key={row.id}>
+                <td className="mono">{formatTime(row.occurred_at)}</td>
+                <td>{row.employees?.name ?? "-"}</td>
+                <td className="mono">{row.browser_package?.replace("com.android.", "")}</td>
+                <td>
+                  {row.is_search ? (
+                    <span>{row.search_query}</span>
+                  ) : (
+                    <span className="mono">{row.domain ?? row.url}</span>
+                  )}
+                </td>
+                <td>
+                  <span className={`badge ${row.is_search ? "flag" : ""}`}>
+                    {row.is_search ? "search" : "website"}
+                  </span>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {recentActivity.map((row: any) => (
-                <tr key={row.id}>
-                  <td className="mono">{formatTime(row.occurred_at)}</td>
-                  <td>{row.employees?.name ?? "-"}</td>
-                  <td className="mono">{row.browser_package?.replace("com.android.", "")}</td>
-                  <td>
-                    {row.is_search ? (
-                      <span>{row.search_query}</span>
-                    ) : (
-                      <span className="mono">{row.domain ?? row.url}</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`badge ${row.is_search ? "flag" : ""}`}>
-                      {row.is_search ? "search" : "website"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </main>
-    </div>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
   );
 }

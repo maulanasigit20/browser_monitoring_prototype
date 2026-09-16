@@ -50,18 +50,22 @@ export default async function LocationPage() {
               <tr key={row.id}>
                 <td className="mono">{formatTime(row.occurred_at)}</td>
                 <td>{row.employees?.name ?? "-"}</td>
-                <td className="mono">{row.latitude.toFixed(5)}</td>
-                <td className="mono">{row.longitude.toFixed(5)}</td>
+                <td className="mono">{row.latitude != null ? row.latitude.toFixed(5) : "-"}</td>
+                <td className="mono">{row.longitude != null ? row.longitude.toFixed(5) : "-"}</td>
                 <td className="mono">{row.accuracy_m ? `${Math.round(row.accuracy_m)}m` : "-"}</td>
                 <td>
-                  <a
-                    className="mono link"
-                    href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    buka peta
-                  </a>
+                  {row.latitude != null && row.longitude != null ? (
+                    <a
+                      className="mono link"
+                      href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      buka peta
+                    </a>
+                  ) : (
+                    "-"
+                  )}
                 </td>
               </tr>
             ))}
