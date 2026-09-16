@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
+
 function timeAgo(iso: string | null) {
   if (!iso) return "Belum ada aktivitas";
   const diffMs = Date.now() - new Date(iso).getTime();
