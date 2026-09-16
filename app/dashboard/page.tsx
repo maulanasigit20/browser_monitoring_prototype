@@ -1,112 +1,117 @@
+import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { isCriticalActivity } from "@/lib/flagging";
 
-// Tiga baris ini sengaja tiga-tiganya dipasang (bukan cuma dynamic) sebagai
-// pengaman berlapis supaya Vercel/Next.js beneran gak nge-cache halaman ini
-// sama sekali -- data harus selalu fresh dari Supabase tiap kali dibuka.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-async function getData() {
+function timeAgo(iso: string | null) {
+  if (!iso) return "Belum ada aktivitas";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "Baru saja";
+  if (minutes < 60) return `${minutes} menit lalu`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  const days = Math.floor(hours / 24);
+  return `${days} hari lalu`;
+}
+
+async function getEmployeeSummaries() {
   const supabase = getSupabaseServerClient();
 
-  const [{ count: employeeCount }, { count: browserCount }, { count: locationCount }, { count: attendanceCount }] =
-    await Promise.all([
-      supabase.from("employees").select("*", { count: "exact", head: true }),
-      supabase.from("browser_activity").select("*", { count: "exact", head: true }),
-      supabase.from("location_logs").select("*", { count: "exact", head: true }),
-      supabase.from("attendance_logs").select("*", { count: "exact", head: true }),
-    ]);
+  const { data: employees } = await supabase
+    .from("employees")
+    .select("id, name, email, is_active")
+    .order("name", { ascending: true });
 
-  const { data: recentActivity } = await supabase
-    .from("browser_activity")
-    .select("id, browser_package, url, domain, is_search, search_query, occurred_at, employees(name)")
-    .order("occurred_at", { ascending: false })
-    .limit(30);
+  if (!employees || employees.length === 0) return [];
 
-  return {
-    stats: {
-      employees: employeeCount ?? 0,
-      browser: browserCount ?? 0,
-      location: locationCount ?? 0,
-      attendance: attendanceCount ?? 0,
-    },
-    recentActivity: recentActivity ?? [],
-  };
+  const summaries = await Promise.all(
+    employees.map(async (emp) => {
+      const [{ data: lastBrowser }, { count: browserCount }, { data: criticalHits }, { data: lastAttendance }] =
+        await Promise.all([
+          supabase
+            .from("browser_activity")
+            .select("occurred_at")
+            .eq("employee_id", emp.id)
+            .order("occurred_at", { ascending: false })
+            .limit(1),
+          supabase
+            .from("browser_activity")
+            .select("*", { count: "exact", head: true })
+            .eq("employee_id", emp.id),
+          supabase
+            .from("browser_activity")
+            .select("url, domain, search_query")
+            .eq("employee_id", emp.id)
+            .order("occurred_at", { ascending: false })
+            .limit(20),
+          supabase
+            .from("attendance_logs")
+            .select("type, occurred_at")
+            .eq("employee_id", emp.id)
+            .order("occurred_at", { ascending: false })
+            .limit(1),
+        ]);
+
+      const hasCritical = (criticalHits ?? []).some((row) => isCriticalActivity(row));
+
+      return {
+        ...emp,
+        lastBrowserAt: lastBrowser?.[0]?.occurred_at ?? null,
+        browserCount: browserCount ?? 0,
+        hasCritical,
+        lastAttendance: lastAttendance?.[0] ?? null,
+      };
+    })
+  );
+
+  return summaries;
 }
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-export default async function DashboardPage() {
-  const { stats, recentActivity } = await getData();
+export default async function EmployeesPage() {
+  const employees = await getEmployeeSummaries();
 
   return (
     <>
-      <div className="stat-row">
-        <div className="stat">
-          <div className="stat-value">{stats.employees}</div>
-          <div className="stat-label">Karyawan terdaftar</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{stats.browser}</div>
-          <div className="stat-label">Event browser</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{stats.location}</div>
-          <div className="stat-label">Titik lokasi</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{stats.attendance}</div>
-          <div className="stat-label">Record absensi</div>
-        </div>
-      </div>
+      <h2 className="section-title">Karyawan</h2>
 
-      <h2 className="section-title">Aktivitas browser terbaru</h2>
-
-      {recentActivity.length === 0 ? (
+      {employees.length === 0 ? (
         <div className="empty-state">
-          Belum ada data. Sync dari Android app dulu, atau insert manual di Supabase table editor untuk testing.
+          Belum ada karyawan terdaftar. Tambahkan lewat Supabase Table Editor &gt; employees.
         </div>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Waktu</th>
-              <th>Karyawan</th>
-              <th>Browser</th>
-              <th>URL / pencarian</th>
-              <th>Tipe</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentActivity.map((row: any) => (
-              <tr key={row.id}>
-                <td className="mono">{formatTime(row.occurred_at)}</td>
-                <td>{row.employees?.name ?? "-"}</td>
-                <td className="mono">{row.browser_package?.replace("com.android.", "")}</td>
-                <td>
-                  {row.is_search ? (
-                    <span>{row.search_query}</span>
-                  ) : (
-                    <span className="mono">{row.domain ?? row.url}</span>
-                  )}
-                </td>
-                <td>
-                  <span className={`badge ${row.is_search ? "flag" : ""}`}>
-                    {row.is_search ? "search" : "website"}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="employee-grid">
+          {employees.map((emp) => (
+            <Link href={`/dashboard/employees/${emp.id}`} key={emp.id} className="employee-card">
+              <div className="employee-card-top">
+                <div className="employee-name">{emp.name}</div>
+                {emp.hasCritical && <span className="badge critical">critical</span>}
+              </div>
+              <div className="employee-meta">{emp.email ?? "-"}</div>
+              <div className="employee-stats">
+                <div>
+                  <div className="employee-stat-value">{emp.browserCount}</div>
+                  <div className="employee-stat-label">event browser</div>
+                </div>
+                <div>
+                  <div className="employee-stat-value">
+                    {emp.lastAttendance
+                      ? emp.lastAttendance.type === "check_in"
+                        ? "Masuk"
+                        : "Pulang"
+                      : "-"}
+                  </div>
+                  <div className="employee-stat-label">absensi terakhir</div>
+                </div>
+              </div>
+              <div className="employee-lastseen">Terakhir browsing: {timeAgo(emp.lastBrowserAt)}</div>
+              {!emp.is_active && <div className="employee-inactive">Nonaktif</div>}
+            </Link>
+          ))}
+        </div>
       )}
     </>
   );

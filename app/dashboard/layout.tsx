@@ -8,9 +8,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <strong>Monitoring</strong>
           demo dashboard
         </div>
-        <Link href="/dashboard">Aktivitas browser</Link>
-        <Link href="/dashboard/location">Lokasi</Link>
-        <Link href="/dashboard/attendance">Absensi</Link>
+        <Link href="/dashboard">Karyawan</Link>
       </nav>
 
       <main className="main">{children}</main>
