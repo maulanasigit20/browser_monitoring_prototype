@@ -18,18 +18,30 @@ function timeAgo(iso: string | null) {
   return `${days} hari lalu`;
 }
 
-async function getEmployeeSummaries() {
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
+}
+
+/** Batas awal "hari ini" dalam WIB (Asia/Jakarta, UTC+7, gak ada DST). */
+function todayStartISO() {
+  const now = new Date();
+  const jakartaDateStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }); // "YYYY-MM-DD"
+  return new Date(`${jakartaDateStr}T00:00:00+07:00`).toISOString();
+}
+
+async function getDashboardData() {
   const supabase = getSupabaseServerClient();
+  const todayStart = todayStartISO();
 
   const { data: employees } = await supabase
     .from("employees")
     .select("id, name, email, is_active")
     .order("name", { ascending: true });
 
-  if (!employees || employees.length === 0) return [];
+  const employeeList = employees ?? [];
 
-  const summaries = await Promise.all(
-    employees.map(async (emp) => {
+  const rows = await Promise.all(
+    employeeList.map(async (emp) => {
       const [{ data: lastBrowser }, { count: browserCount }, { data: criticalHits }, { data: lastAttendance }] =
         await Promise.all([
           supabase
@@ -68,50 +80,125 @@ async function getEmployeeSummaries() {
     })
   );
 
-  return summaries;
+  // Agregat buat summary cards
+  const [{ count: checkInToday }, { count: checkOutToday }, { count: browserEventsToday }, { data: checkedInTodayRows }] =
+    await Promise.all([
+      supabase
+        .from("attendance_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("type", "check_in")
+        .gte("occurred_at", todayStart),
+      supabase
+        .from("attendance_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("type", "check_out")
+        .gte("occurred_at", todayStart),
+      supabase
+        .from("browser_activity")
+        .select("*", { count: "exact", head: true })
+        .gte("occurred_at", todayStart),
+      supabase.from("attendance_logs").select("employee_id").eq("type", "check_in").gte("occurred_at", todayStart),
+    ]);
+
+  const employeesCheckedInToday = new Set((checkedInTodayRows ?? []).map((r) => r.employee_id)).size;
+  const criticalCount = rows.filter((r) => r.hasCritical).length;
+
+  return {
+    rows,
+    summary: {
+      totalEmployees: employeeList.length,
+      criticalCount,
+      normalCount: employeeList.length - criticalCount,
+      checkInToday: checkInToday ?? 0,
+      checkOutToday: checkOutToday ?? 0,
+      notCheckedInToday: employeeList.length - employeesCheckedInToday,
+      browserEventsToday: browserEventsToday ?? 0,
+    },
+  };
 }
 
 export default async function EmployeesPage() {
-  const employees = await getEmployeeSummaries();
+  const { rows, summary } = await getDashboardData();
 
   return (
     <>
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat-value">{summary.totalEmployees}</div>
+          <div className="stat-label">Total karyawan</div>
+        </div>
+        <div className="stat stat-critical">
+          <div className="stat-value">{summary.criticalCount}</div>
+          <div className="stat-label">Critical</div>
+        </div>
+        <div className="stat">
+          <div className="stat-value">{summary.normalCount}</div>
+          <div className="stat-label">Normal</div>
+        </div>
+        <div className="stat">
+          <div className="stat-value">{summary.checkInToday}</div>
+          <div className="stat-label">Check-in hari ini</div>
+        </div>
+        <div className="stat">
+          <div className="stat-value">{summary.checkOutToday}</div>
+          <div className="stat-label">Check-out hari ini</div>
+        </div>
+        <div className="stat">
+          <div className="stat-value">{summary.notCheckedInToday}</div>
+          <div className="stat-label">Belum absen hari ini</div>
+        </div>
+        <div className="stat">
+          <div className="stat-value">{summary.browserEventsToday}</div>
+          <div className="stat-label">Event browser hari ini</div>
+        </div>
+      </div>
+
       <h2 className="section-title">Karyawan</h2>
 
-      {employees.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="empty-state">
           Belum ada karyawan terdaftar. Tambahkan lewat Supabase Table Editor &gt; employees.
         </div>
       ) : (
-        <div className="employee-grid">
-          {employees.map((emp) => (
-            <Link href={`/dashboard/employees/${emp.id}`} key={emp.id} className="employee-card">
-              <div className="employee-card-top">
-                <div className="employee-name">{emp.name}</div>
-                {emp.hasCritical && <span className="badge critical">critical</span>}
-              </div>
-              <div className="employee-meta">{emp.email ?? "-"}</div>
-              <div className="employee-stats">
-                <div>
-                  <div className="employee-stat-value">{emp.browserCount}</div>
-                  <div className="employee-stat-label">event browser</div>
-                </div>
-                <div>
-                  <div className="employee-stat-value">
-                    {emp.lastAttendance
-                      ? emp.lastAttendance.type === "check_in"
-                        ? "Masuk"
-                        : "Pulang"
-                      : "-"}
-                  </div>
-                  <div className="employee-stat-label">absensi terakhir</div>
-                </div>
-              </div>
-              <div className="employee-lastseen">Terakhir browsing: {timeAgo(emp.lastBrowserAt)}</div>
-              {!emp.is_active && <div className="employee-inactive">Nonaktif</div>}
-            </Link>
-          ))}
-        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Nama</th>
+              <th>Email</th>
+              <th>Absensi terakhir</th>
+              <th>Event browser</th>
+              <th>Severity</th>
+              <th>Terakhir browsing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((emp) => (
+              <tr key={emp.id}>
+                <td>
+                  <Link href={`/dashboard/employees/${emp.id}`} className="link">
+                    {emp.name}
+                  </Link>
+                  {!emp.is_active && <span className="inline-inactive">nonaktif</span>}
+                </td>
+                <td className="mono">{emp.email ?? "-"}</td>
+                <td className="mono">
+                  {emp.lastAttendance
+                    ? `${emp.lastAttendance.type === "check_in" ? "Masuk" : "Pulang"} ${formatTime(emp.lastAttendance.occurred_at)}`
+                    : "-"}
+                </td>
+                <td className="mono">{emp.browserCount}</td>
+                <td>
+                  {emp.hasCritical ? (
+                    <span className="badge critical">critical</span>
+                  ) : (
+                    <span className="badge">normal</span>
+                  )}
+                </td>
+                <td className="mono">{timeAgo(emp.lastBrowserAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </>
   );

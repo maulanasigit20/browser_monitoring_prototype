@@ -13,6 +13,7 @@ function formatDateTime(iso: string) {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Jakarta",
   });
 }
 
@@ -189,7 +190,7 @@ async function AttendanceTab({ employeeId }: { employeeId: string }) {
               </span>
             </td>
             <td className="mono">
-              {new Date(row.occurred_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+              {new Date(row.occurred_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })}
             </td>
             <td className="mono">
               {row.latitude != null && row.longitude != null ? (
