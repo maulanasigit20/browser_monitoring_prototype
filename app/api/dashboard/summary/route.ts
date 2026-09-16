@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 // GET /api/dashboard/summary
-// Dipanggil dari web dashboard (bukan Android). Untuk demo tidak pakai auth
+// Dipanggil dari web dashboard (bukan Android)., Untuk demo tidak pakai auth
 // admin yang kompleks -- lihat catatan keamanan di README sebelum production.
 export async function GET() {
   const supabase = getSupabaseServerClient();

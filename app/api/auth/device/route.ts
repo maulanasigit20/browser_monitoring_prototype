@@ -4,7 +4,7 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 // Dipanggil sekali saat Android app pertama kali setup / device baru didaftarkan
 // oleh admin. Untuk demo: device didaftarkan manual dulu lewat Supabase table
 // editor (insert row employees dengan device_id), lalu endpoint ini dipakai
-// buat device "klaim" api_key-nya pakai device_id yang sudah admin daftarkan.
+// buat device "klaim" api_key-nya pakai device_id  yang sudah admin daftarkan.
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
 

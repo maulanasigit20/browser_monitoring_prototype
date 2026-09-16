@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { verifyDeviceApiKey } from "@/lib/auth";
 
-// Body yang diharapkan dari Android (batch, sesuai WorkManager sync job):
+// Body yang diharapkan dari Android, (batch, sesuai WorkManager sync job):
 // {
 //   "entries": [
 //     {

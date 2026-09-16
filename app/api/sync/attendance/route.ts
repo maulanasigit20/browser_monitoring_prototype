@@ -3,7 +3,7 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 import { verifyDeviceApiKey } from "@/lib/auth";
 
 // Body: { "type": "check_in", "latitude": -6.2, "longitude": 106.8, "photo_url": null, "occurred_at": "..." }
-// Absensi biasanya 1 event per aksi (bukan batch), beda dari browser activity / location.
+// Absensi biasanya 1 event per aksi (bukan ,batch), beda dari browser activity / location.
 export async function POST(request: Request) {
   const employee = await verifyDeviceApiKey(request);
   if (!employee) {

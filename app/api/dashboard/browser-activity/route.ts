@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
-// GET /api/dashboard/browser-activity?employeeId=&isSearch=true&limit=50
+// GET /api/dashboard/browser-activity?employeeId=&isSearch=true&limit=50 ,
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const employeeId = searchParams.get("employeeId");

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { verifyDeviceApiKey } from "@/lib/auth";
 
-// Body: { "entries": [{ "latitude": -6.2, "longitude": 106.8, "accuracy_m": 12.5, "occurred_at": "..." }] }
+// Body: { "entries": [{ "latitude": -6.2, "longitud,e": 106.8, "accuracy_m": 12.5, "occurred_at": "..." }] }
 export async function POST(request: Request) {
   const employee = await verifyDeviceApiKey(request);
   if (!employee) {
