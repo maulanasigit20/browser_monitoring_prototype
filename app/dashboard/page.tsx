@@ -123,34 +123,19 @@ export default async function EmployeesPage() {
 
   return (
     <>
-      <div className="stat-row">
-        <div className="stat">
-          <div className="stat-value">{summary.totalEmployees}</div>
-          <div className="stat-label">Total karyawan</div>
+      <div className="stat-container">
+        {/* Baris Atas */}
+        <div className="stat-row">
+          <div className="stat"><div className="stat-value">{summary.totalEmployees}</div><div className="stat-label">Total karyawan</div></div>
+          <div className="stat stat-critical"><div className="stat-value">{summary.criticalCount}</div><div className="stat-label">Critical</div></div>
+          <div className="stat"><div className="stat-value">{summary.normalCount}</div><div className="stat-label">Normal</div></div>
         </div>
-        <div className="stat stat-critical">
-          <div className="stat-value">{summary.criticalCount}</div>
-          <div className="stat-label">Critical</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{summary.normalCount}</div>
-          <div className="stat-label">Normal</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{summary.checkInToday}</div>
-          <div className="stat-label">Check-in hari ini</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{summary.checkOutToday}</div>
-          <div className="stat-label">Check-out hari ini</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{summary.notCheckedInToday}</div>
-          <div className="stat-label">Belum absen hari ini</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{summary.browserEventsToday}</div>
-          <div className="stat-label">Event browser hari ini</div>
+
+        {/* Baris Bawah */}
+        <div className="stat-row">
+          <div className="stat"><div className="stat-value">{summary.checkInToday}</div><div className="stat-label">Check-in hari ini</div></div>
+          <div className="stat"><div className="stat-value">{summary.checkOutToday}</div><div className="stat-label">Check-out hari ini</div></div>
+          <div className="stat"><div className="stat-value">{summary.notCheckedInToday}</div><div className="stat-label">Belum absen hari ini</div></div>
         </div>
       </div>
 

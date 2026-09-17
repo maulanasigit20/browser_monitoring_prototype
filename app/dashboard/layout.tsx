@@ -6,7 +6,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <nav className="nav">
         <div className="nav-brand">
           <strong>Monitoring</strong>
-          demo dashboard
+          Dashboard
         </div>
         <Link href="/dashboard">Karyawan</Link>
       </nav>
